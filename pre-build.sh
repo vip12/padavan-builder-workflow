@@ -123,10 +123,10 @@ fi
 # 6. Обновление NTP в mtd_storage.sh
 MTD_STORAGE="padavan-ng/trunk/user/scripts/mtd_storage.sh"
 if [[ -f "$MTD_STORAGE" ]]; then
-  # Заменяем старые серверы на Яндекс DNS
-  sed -i "s|server=/ntp.org/time.cloudflare.com/time.google.com/time.in.ua/.*|server=/ntp.org/time.cloudflare.com/time.google.com/time.in.ua/${DNS_SERVERS[0]}|" "$MTD_STORAGE"
+  # Полностью заменяем домены и DNS для NTP
+  sed -i "s|server=/.*/.*|server=/$RUS_NTP_DOMAINS/${DNS_SERVERS[0]}|" "$MTD_STORAGE"
   
-  # Добавляем российские NTP серверы
+  # Обновляем список NTP серверов
   RUS_NTP_SERVERS=$(IFS=,; echo "${NTP_SERVERS[*]}")
   sed -i "s|ntp_dns=.*|ntp_dns=\"$RUS_NTP_SERVERS\"|" "$MTD_STORAGE"
 else
