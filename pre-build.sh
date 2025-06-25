@@ -107,18 +107,24 @@ if [[ -f "$DEFAULTS_C" ]]; then
   # Имя устройства
   sed -i "s|def_computer_name\[32\] = \".*\";|def_computer_name[32] = \"$DEVICE_NAME\";|" "$DEFAULTS_C"
   
-  # Ключевое исправление: изменение поля computer_name в структуре nvram_pair
+  # Ключевое исправление: изменение поля computer_name
   sed -i "s|{ \"computer_name\", BOARD_NAME },|{ \"computer_name\", \"$DEVICE_NAME\" },|" "$DEFAULTS_C"
   
-  # Замена адресов для проверки пинга
+  # --- ПЕРЕРАБОТАННЫЙ БЛОК ДЛЯ ДИАГНОСТИЧЕСКИХ АДРЕСОВ И ПОРТОВ ---
+  # Заменяем первые два адреса на Яндекс DNS
   sed -i \
     -e "s|\"di_addr0\", \"1\.1\.1\.1\"|\"di_addr0\", \"${DNS_SERVERS[0]}\"|" \
     -e "s|\"di_addr1\", \"8\.8\.8\.8\"|\"di_addr1\", \"${DNS_SERVERS[1]}\"|" \
-    -e "s|\"di_addr2\", \"9\.9\.9\.9\"|\"di_addr2\", \"\"|" \
-    -e "s|\"di_addr3\", \"1\.0\.0\.1\"|\"di_addr3\", \"\"|" \
-    -e "s|\"di_addr4\", \"8\.8\.4\.4\"|\"di_addr4\", \"\"|" \
-    -e "s|\"di_addr5\", \"149\.112\.112\.112\"|\"di_addr5\", \"\"|" \
     "$DEFAULTS_C"
+  
+  # Удаляем лишние адреса (di_addr2 - di_addr5)
+  sed -i '/"di_addr[2-5]"/d' "$DEFAULTS_C"
+  
+  # Удаляем лишние порты (di_port2 - di_port5)
+  sed -i '/"di_port[2-5]"/d' "$DEFAULTS_C"
+  
+  # Уменьшаем количество диагностических серверов
+  sed -i 's|di_num = .*|di_num = 2;|' "$DEFAULTS_C"
 fi
 
 # 6. Обновление NTP в mtd_storage.sh
