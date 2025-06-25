@@ -13,7 +13,7 @@ find padavan-ng/trunk/configs/boards -type f -exec sed -i \
    s|192\.168\.2\.1|$NEW_IP|g;
    s|10\.0\.0\.1|$NEW_IP|g" {} +
 
-# 2. Изменение BOARD_PID в board.h (для изменения части SSID)
+# 2. Изменение BOARD_PID в board.h
 BOARD_H="padavan-ng/trunk/configs/boards/XIAOMI/MI-3/board.h"
 if [[ -f "$BOARD_H" ]]; then
   sed -i \
@@ -25,16 +25,16 @@ else
   exit 1
 fi
 
-# 3. Прямое изменение SSID в профиле Wi-Fi
-WIFI_PROFILE="padavan-ng/trunk/configs/boards/ralink/mt7620a.profile"
-if [[ -f "$WIFI_PROFILE" ]]; then
+# 3. Прямое изменение SSID в скрипте инициализации Wi-Fi
+WIFI_SCRIPT="padavan-ng/trunk/user/shared/scripts/set_wifi.sh"
+if [[ -f "$WIFI_SCRIPT" ]]; then
   # Для 2.4GHz - только имя, без суффикса
-  sed -i "s|^ssid_24g=.*|ssid_24g='$NEW_SSID'|" "$WIFI_PROFILE"
+  sed -i "s|ssid_24g=\${ssid_24g:-.*}|ssid_24g=\${ssid_24g:-'$NEW_SSID'}|" "$WIFI_SCRIPT"
   
   # Для 5GHz - имя + "_5G"
-  sed -i "s|^ssid_5g=.*|ssid_5g='${NEW_SSID}_5G'|" "$WIFI_PROFILE"
+  sed -i "s|ssid_5g=\${ssid_5g:-.*}|ssid_5g=\${ssid_5g:-'${NEW_SSID}_5G'}|" "$WIFI_SCRIPT"
 else
-  echo "WARNING: Wi-Fi profile not found at $WIFI_PROFILE"
+  echo "WARNING: Wi-Fi init script not found at $WIFI_SCRIPT"
 fi
 
 # 4. Изменение домена по умолчанию
@@ -46,7 +46,7 @@ if [[ -f "$DEFAULTS_FILE" ]]; then
     "$DEFAULTS_FILE"
 fi
 
-# 5. Дополнительная замена в других местах (где может встречаться старый домен)
+# 5. Дополнительная замена в других местах
 find padavan-ng/trunk/user/www \( -name '*.js' -o -name '*.html' \) -exec sed -i "s|my\.router|$NEW_HOSTNAME|g" {} +
 
 # 6. Обновление конфига сборки (только IP)
