@@ -3,8 +3,17 @@
 NEW_IP="192.168.31.1"
 NEW_SSID="Xiaomi_B477"
 NEW_HOSTNAME="miwifi.com"
+NEW_COUNTRY="RU"
+NEW_TIMEZONE="MSK-3"
+NTP_SERVERS=("pool.ntp.org" "ntp.msk-ix.ru" "time.cloudflare.com" "time.google.com")
 
-echo "Applying network settings: IP=$NEW_IP, SSID=$NEW_SSID, Hostname=$NEW_HOSTNAME"
+echo "Applying network settings:"
+echo "- IP: $NEW_IP"
+echo "- SSID: $NEW_SSID"
+echo "- Hostname: $NEW_HOSTNAME"
+echo "- Country: $NEW_COUNTRY"
+echo "- Timezone: $NEW_TIMEZONE"
+echo "- NTP Servers: ${NTP_SERVERS[*]}"
 
 # 1. Изменение IP-адреса
 find padavan-ng/trunk/configs/boards -type f -exec sed -i \
@@ -25,29 +34,65 @@ else
   exit 1
 fi
 
-# 3. Прямое изменение SSID в файлах профиля Wi-Fi
-# Поиск всех профилей Wi-Fi в конфигах платы
-find padavan-ng/trunk/configs/boards -name "*.profile" | while read profile; do
-  echo "Modifying Wi-Fi profile: $profile"
-  # Для 2.4GHz
-  sed -i "s|^ssid_24g=.*|ssid_24g='$NEW_SSID'|" "$profile"
-  # Для 5GHz
-  sed -i "s|^ssid_5g=.*|ssid_5g='${NEW_SSID}_5G'|" "$profile"
-done
-
-# 4. Изменение домена по умолчанию
-DEFAULTS_FILE="padavan-ng/trunk/user/shared/defaults.sh"
-if [[ -f "$DEFAULTS_FILE" ]]; then
-  sed -i \
-    -e "s|DEFAULT_LAN_IP=.*|DEFAULT_LAN_IP='$NEW_IP'|" \
-    -e "s|DEFAULT_DOMAIN_NAME=.*|DEFAULT_DOMAIN_NAME='$NEW_HOSTNAME'|" \
-    "$DEFAULTS_FILE"
+# 3. Изменение хоста в net_wan.c
+NET_WAN_FILE="padavan-ng/trunk/user/rc/net_wan.c"
+if [[ -f "$NET_WAN_FILE" ]]; then
+  sed -i "s|\"my\.router\"|\"$NEW_HOSTNAME\"|g" "$NET_WAN_FILE"
 fi
 
-# 5. Дополнительная замена в других местах
-find padavan-ng/trunk/user/www \( -name '*.js' -o -name '*.html' \) -exec sed -i "s|my\.router|$NEW_HOSTNAME|g" {} +
+# 4. Изменение параметров в defaults.h
+DEFAULTS_H="padavan-ng/trunk/user/shared/defaults.h"
+if [[ -f "$DEFAULTS_H" ]]; then
+  # IP и домен
+  sed -i \
+    -e "s|DEF_LAN_ADDR[[:space:]]\+\".*\"|DEF_LAN_ADDR \"$NEW_IP\"|" \
+    -e "s|DEF_LAN_DHCP_BEG[[:space:]]\+\".*\"|DEF_LAN_DHCP_BEG \"${NEW_IP%.*}.2\"|" \
+    -e "s|DEF_LAN_DHCP_END[[:space:]]\+\".*\"|DEF_LAN_DHCP_END \"${NEW_IP%.*}.244\"|" \
+    -e "s|DEFAULT_DOMAIN_NAME[[:space:]]\+\".*\"|DEFAULT_DOMAIN_NAME \"$NEW_HOSTNAME\"|" \
+    "$DEFAULTS_H"
+  
+  # Страна
+  sed -i \
+    -e "s|DEF_WLAN_2G_CC[[:space:]]\+\".*\"|DEF_WLAN_2G_CC \"$NEW_COUNTRY\"|" \
+    -e "s|DEF_WLAN_5G_CC[[:space:]]\+\".*\"|DEF_WLAN_5G_CC \"$NEW_COUNTRY\"|" \
+    "$DEFAULTS_H"
+  
+  # Часовой пояс
+  sed -i "s|DEF_TIMEZONE[[:space:]]\+\".*\"|DEF_TIMEZONE \"$NEW_TIMEZONE\"|" "$DEFAULTS_H"
+  
+  # NTP серверы
+  for i in {0..3}; do
+    if [[ -n "${NTP_SERVERS[$i]}" ]]; then
+      sed -i "s|DEF_NTP_SERVER$i[[:space:]]\+\".*\"|DEF_NTP_SERVER$i \"${NTP_SERVERS[$i]}\"|" "$DEFAULTS_H"
+    fi
+  done
+fi
 
-# 6. Обновление конфига сборки (только IP)
+# 5. Изменение SSID в defaults.h и defaults.c
+if [[ -f "$DEFAULTS_H" ]]; then
+  sed -i \
+    -e "s|DEF_WLAN_2G_SSID[[:space:]]\+\".*\"|DEF_WLAN_2G_SSID \"$NEW_SSID\"|" \
+    -e "s|DEF_WLAN_5G_SSID[[:space:]]\+\".*\"|DEF_WLAN_5G_SSID \"${NEW_SSID}_5G\"|" \
+    "$DEFAULTS_H"
+fi
+
+DEFAULTS_C="padavan-ng/trunk/user/shared/defaults.c"
+if [[ -f "$DEFAULTS_C" ]]; then
+  sed -i \
+    -e "s|def_ssid_24g = \".*\";|def_ssid_24g = \"$NEW_SSID\";|" \
+    -e "s|def_ssid_5g = \".*\";|def_ssid_5g = \"${NEW_SSID}_5G\";|" \
+    "$DEFAULTS_C"
+fi
+
+# 6. Замена в веб-интерфейсе
+find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' \) -exec grep -l "my\.router" {} + | while read file; do
+  sed -i "s|my\.router|$NEW_HOSTNAME|g" "$file"
+done
+
+# 7. Обновление конфига сборки
 sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
+
+# 8. Принудительная очистка
+make clean
 
 echo "Configuration applied successfully!"
