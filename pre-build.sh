@@ -9,6 +9,7 @@ NEW_TIMEZONE="UTC-3"
 DEVICE_NAME="router"
 NTP_SERVERS=("ntp.msk-ix.ru" "ru.pool.ntp.org" "ntp1.vniiftri.ru" "ntp1.stratum1.ru")
 DNS_SERVERS=("77.88.8.8" "77.88.8.1")  # Яндекс DNS
+RUS_NTP_DOMAINS="ntp.msk-ix.ru/ru.pool.ntp.org/ntp1.vniiftri.ru/ntp1.stratum1.ru"
 
 echo "Applying network settings:"
 echo "- IP: $NEW_IP"
