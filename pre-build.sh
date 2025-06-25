@@ -92,7 +92,4 @@ done
 # 7. Обновление конфига сборки
 sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
 
-# 8. Принудительная очистка
-make clean
-
 echo "Configuration applied successfully!"
