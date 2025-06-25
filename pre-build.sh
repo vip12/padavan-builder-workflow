@@ -1,38 +1,55 @@
 #!/bin/bash
 
-# Конфигурация
 NEW_IP="192.168.31.1"
 NEW_SSID="Xiaomi_B477"
+NEW_HOSTNAME="miwifi.com"
 
-echo "Applying network settings: IP=$NEW_IP, SSID=$NEW_SSID"
+echo "Applying network settings: IP=$NEW_IP, SSID=$NEW_SSID, Hostname=$NEW_HOSTNAME"
 
-# 1. Изменение IP-адреса (без изменения PRODUCT_ID)
-find padavan-ng/trunk/configs/boards -type f -name "board.*" -exec sed -i \
+# 1. Изменение IP-адреса
+find padavan-ng/trunk/configs/boards -type f -exec sed -i \
   "s|192\.168\.1\.1|$NEW_IP|g;
    s|192\.168\.0\.1|$NEW_IP|g;
    s|192\.168\.2\.1|$NEW_IP|g;
    s|10\.0\.0\.1|$NEW_IP|g" {} +
 
-# 2. Изменение SSID (только для XIAOMI MI-3)
-BOARD_PROFILE="padavan-ng/trunk/configs/boards/XIAOMI/MI-3/board.h"
-if [[ -f "$BOARD_PROFILE" ]]; then
+# 2. Изменение BOARD_PID в board.h (для изменения части SSID)
+BOARD_H="padavan-ng/trunk/configs/boards/XIAOMI/MI-3/board.h"
+if [[ -f "$BOARD_H" ]]; then
   sed -i \
-    -e "s|#define\s\+BOARD_SSID\s\+\".*\"|#define BOARD_SSID \"$NEW_SSID\"|" \
-    -e "s|#define\s\+BOARD_SSID0\s\+\".*\"|#define BOARD_SSID0 \"$NEW_SSID\"|" \
-    -e "s|#define\s\+BOARD_SSID1\s\+\".*\"|#define BOARD_SSID1 \"$NEW_SSID\"|" \
-    "$BOARD_PROFILE"
+    -e "s/BOARD_PID[[:space:]]\+\".*\"/BOARD_PID \"$NEW_SSID\"/" \
+    -e "s/BOARD_NAME[[:space:]]\+\".*\"/BOARD_NAME \"$NEW_SSID\"/" \
+    "$BOARD_H"
 else
-  echo "ERROR: Board profile not found at $BOARD_PROFILE"
+  echo "ERROR: board.h not found at $BOARD_H"
   exit 1
 fi
 
-# 3. Обновление только IP в конфиге сборки
-sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
+# 3. Прямое изменение SSID в профиле Wi-Fi
+WIFI_PROFILE="padavan-ng/trunk/configs/boards/ralink/mt7620a.profile"
+if [[ -f "$WIFI_PROFILE" ]]; then
+  # Для 2.4GHz - только имя, без суффикса
+  sed -i "s|^ssid_24g=.*|ssid_24g='$NEW_SSID'|" "$WIFI_PROFILE"
+  
+  # Для 5GHz - имя + "_5G"
+  sed -i "s|^ssid_5g=.*|ssid_5g='${NEW_SSID}_5G'|" "$WIFI_PROFILE"
+else
+  echo "WARNING: Wi-Fi profile not found at $WIFI_PROFILE"
+fi
 
-# 4. Обновление defaults.sh
+# 4. Изменение домена по умолчанию
 DEFAULTS_FILE="padavan-ng/trunk/user/shared/defaults.sh"
 if [[ -f "$DEFAULTS_FILE" ]]; then
-  sed -i "s|DEFAULT_LAN_IP=.*|DEFAULT_LAN_IP='$NEW_IP'|" "$DEFAULTS_FILE"
+  sed -i \
+    -e "s|DEFAULT_LAN_IP=.*|DEFAULT_LAN_IP='$NEW_IP'|" \
+    -e "s|DEFAULT_DOMAIN_NAME=.*|DEFAULT_DOMAIN_NAME='$NEW_HOSTNAME'|" \
+    "$DEFAULTS_FILE"
 fi
+
+# 5. Дополнительная замена в других местах (где может встречаться старый домен)
+find padavan-ng/trunk/user/www \( -name '*.js' -o -name '*.html' \) -exec sed -i "s|my\.router|$NEW_HOSTNAME|g" {} +
+
+# 6. Обновление конфига сборки (только IP)
+sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
 
 echo "Configuration applied successfully!"
