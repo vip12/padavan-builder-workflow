@@ -109,11 +109,34 @@ if [[ -f "$DEFAULTS_C" ]]; then
 fi
 
 # 6. Замена в веб-интерфейсе
-find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' \) -exec grep -l "my\.router" {} + | while read file; do
+find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' -o -name '*.asp' \) -exec grep -l "my\.router" {} + | while read file; do
   sed -i "s|my\.router|$NEW_HOSTNAME|g" "$file"
 done
 
-# 7. Обновление конфига сборки
+# 7. Замена IP в веб-интерфейсе и подсказках
+find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' -o -name '*.asp' \) -exec grep -l "192\.168\.1\.1" {} + | while read file; do
+  sed -i "s|192\.168\.1\.1|$NEW_IP|g" "$file"
+done
+
+# 8. Исправление редиректа после сброса настроек
+RESET_SCRIPTS=(
+  "padavan-ng/trunk/user/rc/reset_ss.sh"
+  "padavan-ng/trunk/user/rc/defaults.c"
+  "padavan-ng/trunk/user/httpd/web_hook.js"
+)
+
+for script in "${RESET_SCRIPTS[@]}"; do
+  if [[ -f "$script" ]]; then
+    sed -i "s|192\.168\.1\.1|$NEW_IP|g" "$script"
+  fi
+done
+
+# 9. Замена в скриптах инициализации
+find padavan-ng/trunk/user/rc -type f -exec grep -l "192\.168\.1\.1" {} + | while read file; do
+  sed -i "s|192\.168\.1\.1|$NEW_IP|g" "$file"
+done
+
+# 10. Обновление конфига сборки
 sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
 
 echo "Configuration applied successfully!"
