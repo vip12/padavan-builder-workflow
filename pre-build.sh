@@ -1,22 +1,25 @@
 #!/bin/bash
 
-# ---- Конфигурация ----
+# Конфигурация
 NEW_IP="192.168.31.1"
 NEW_SSID="Xiaomi_B477"
-# ----------------------
 
-echo "Applying custom configuration:"
-echo " - Default IP: $NEW_IP"
-echo " - WiFi SSID: $NEW_SSID"
+echo "Applying network settings: IP=$NEW_IP, SSID=$NEW_SSID"
 
-# Изменение IP-адреса
-find trunk/configs/ -name 'board.*' -exec sed -i "s/192\.168\.\?1\.1/$NEW_IP/g" {} +
-sed -i "s/CONFIG_FIRMWARE_PRODUCT_ID=.*/CONFIG_FIRMWARE_PRODUCT_ID=\"$NEW_SSID\"/" .config
-sed -i "s/IPWRT=.*/IPWRT=$NEW_IP/g" .config
+# 1. Изменение IP-адреса
+find padavan-ng/trunk/configs/boards -type f -exec sed -i \
+  "s|192\.168\.1\.1|$NEW_IP|g;
+   s|192\.168\.2\.1|$NEW_IP|g;
+   s|192\.168\.0\.1|$NEW_IP|g" {} +
 
-# Изменение WiFi SSID
-sed -i "s/ssid='.*'/ssid='$NEW_SSID'/" trunk/configs/boards/ralink.mt7620.profile
-sed -i "s/ssid=\${ssid:-.*}/ssid=\${ssid:-$NEW_SSID}/" trunk/scripts/set_wifi.sh
+# 2. Изменение SSID
+sed -i \
+  -e "s/ssid='[^']*'/ssid='$NEW_SSID'/" \
+  -e "s/ssid=\${ssid:-[^}]*}/ssid=\${ssid:-$NEW_SSID}/" \
+  padavan-ng/trunk/configs/boards/ralink.mt7620.profile
 
-# Дополнительные настройки
-sed -i "s/DEFAULT_LAN_IP=.*/DEFAULT_LAN_IP='$NEW_IP'/" trunk/user/shared/defaults.sh
+# 3. Обновление конфига сборки
+sed -i \
+  -e "s|CONFIG_FIRMWARE_PRODUCT_ID=.*|CONFIG_FIRMWARE_PRODUCT_ID=\"$NEW_SSID\"|" \
+  -e "s|IPWRT=.*|IPWRT=$NEW_IP|" \
+  build.config
