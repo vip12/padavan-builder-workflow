@@ -8,6 +8,7 @@ NEW_TIMEZONE="UTC-3"
 
 DEVICE_NAME="router"
 NTP_SERVERS=("ntp.msk-ix.ru" "ru.pool.ntp.org" "ntp1.vniiftri.ru" "ntp1.stratum1.ru")
+DNS_SERVERS=("77.88.8.8" "77.88.8.1")  # Яндекс DNS
 
 echo "Applying network settings:"
 echo "- IP: $NEW_IP"
@@ -17,6 +18,7 @@ echo "- Country: $NEW_COUNTRY"
 echo "- Timezone: $NEW_TIMEZONE"
 echo "- Device Name: $DEVICE_NAME"
 echo "- NTP Servers: ${NTP_SERVERS[*]}"
+echo "- DNS Servers: ${DNS_SERVERS[*]}"
 
 # 1. Изменение IP-адреса
 find padavan-ng/trunk/configs/boards -type f -exec sed -i \
@@ -86,7 +88,7 @@ if [[ -f "$DEFAULTS_H" ]]; then
   sed -i "s|#define BOARD_NAME .*|#define BOARD_NAME \"$DEVICE_NAME\"|" "$DEFAULTS_H"
 fi
 
-# 5. Изменение SSID в defaults.c
+# 5. Изменение SSID и других параметров в defaults.c
 DEFAULTS_C="padavan-ng/trunk/user/shared/defaults.c"
 if [[ -f "$DEFAULTS_C" ]]; then
   # Основные сети
@@ -106,19 +108,42 @@ if [[ -f "$DEFAULTS_C" ]]; then
   
   # Ключевое исправление: изменение поля computer_name в структуре nvram_pair
   sed -i "s|{ \"computer_name\", BOARD_NAME },|{ \"computer_name\", \"$DEVICE_NAME\" },|" "$DEFAULTS_C"
+  
+  # Замена адресов для проверки пинга
+  sed -i \
+    -e "s|\"di_addr0\", \"1\.1\.1\.1\"|\"di_addr0\", \"${DNS_SERVERS[0]}\"|" \
+    -e "s|\"di_addr1\", \"8\.8\.8\.8\"|\"di_addr1\", \"${DNS_SERVERS[1]}\"|" \
+    -e "s|\"di_addr2\", \"9\.9\.9\.9\"|\"di_addr2\", \"\"|" \
+    -e "s|\"di_addr3\", \"1\.0\.0\.1\"|\"di_addr3\", \"\"|" \
+    -e "s|\"di_addr4\", \"8\.8\.4\.4\"|\"di_addr4\", \"\"|" \
+    -e "s|\"di_addr5\", \"149\.112\.112\.112\"|\"di_addr5\", \"\"|" \
+    "$DEFAULTS_C"
 fi
 
-# 6. Замена в веб-интерфейсе
+# 6. Обновление NTP в mtd_storage.sh
+MTD_STORAGE="padavan-ng/trunk/user/scripts/mtd_storage.sh"
+if [[ -f "$MTD_STORAGE" ]]; then
+  # Заменяем старые серверы на Яндекс DNS
+  sed -i "s|server=/ntp.org/time.cloudflare.com/time.google.com/time.in.ua/.*|server=/ntp.org/time.cloudflare.com/time.google.com/time.in.ua/${DNS_SERVERS[0]}|" "$MTD_STORAGE"
+  
+  # Добавляем российские NTP серверы
+  RUS_NTP_SERVERS=$(IFS=,; echo "${NTP_SERVERS[*]}")
+  sed -i "s|ntp_dns=.*|ntp_dns=\"$RUS_NTP_SERVERS\"|" "$MTD_STORAGE"
+else
+  echo "WARNING: mtd_storage.sh not found at $MTD_STORAGE"
+fi
+
+# 7. Замена в веб-интерфейсе
 find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' -o -name '*.asp' \) -exec grep -l "my\.router" {} + | while read file; do
   sed -i "s|my\.router|$NEW_HOSTNAME|g" "$file"
 done
 
-# 7. Замена IP в веб-интерфейсе и подсказках
+# 8. Замена IP в веб-интерфейсе и подсказках
 find padavan-ng/trunk/user/www -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' -o -name '*.asp' \) -exec grep -l "192\.168\.1\.1" {} + | while read file; do
   sed -i "s|192\.168\.1\.1|$NEW_IP|g" "$file"
 done
 
-# 8. Исправление редиректа после сброса настроек
+# 9. Исправление редиректа после сброса настроек
 RESET_SCRIPTS=(
   "padavan-ng/trunk/user/rc/reset_ss.sh"
   "padavan-ng/trunk/user/rc/defaults.c"
@@ -131,12 +156,12 @@ for script in "${RESET_SCRIPTS[@]}"; do
   fi
 done
 
-# 9. Замена в скриптах инициализации
+# 10. Замена в скриптах инициализации
 find padavan-ng/trunk/user/rc -type f -exec grep -l "192\.168\.1\.1" {} + | while read file; do
   sed -i "s|192\.168\.1\.1|$NEW_IP|g" "$file"
 done
 
-# 10. Обновление конфига сборки
+# 11. Обновление конфига сборки
 sed -i "s|IPWRT=.*|IPWRT=$NEW_IP|" build.config
 
 echo "Configuration applied successfully!"
