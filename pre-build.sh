@@ -4,7 +4,9 @@ NEW_IP="192.168.31.1"
 NEW_SSID="Xiaomi_B477"
 NEW_HOSTNAME="miwifi.com"
 NEW_COUNTRY="RU"
-NEW_TIMEZONE="MSK-3MSD"
+NEW_TIMEZONE="UTC-3"
+
+DEVICE_NAME="router"
 NTP_SERVERS=("ntp.msk-ix.ru" "ru.pool.ntp.org" "ntp1.vniiftri.ru" "ntp1.stratum1.ru")
 
 echo "Applying network settings:"
@@ -13,6 +15,7 @@ echo "- SSID: $NEW_SSID"
 echo "- Hostname: $NEW_HOSTNAME"
 echo "- Country: $NEW_COUNTRY"
 echo "- Timezone: $NEW_TIMEZONE"
+echo "- Device Name: $DEVICE_NAME"
 echo "- NTP Servers: ${NTP_SERVERS[*]}"
 
 # 1. Изменение IP-адреса
@@ -78,6 +81,9 @@ if [[ -f "$DEFAULTS_H" ]]; then
     -e "s|DEF_WLAN_2G_GSSID[[:space:]]\+\".*\"|DEF_WLAN_2G_GSSID \"Xiaomi_GUEST\"|" \
     -e "s|DEF_WLAN_5G_GSSID[[:space:]]\+\".*\"|DEF_WLAN_5G_GSSID \"Xiaomi_GUEST_5G\"|" \
     "$DEFAULTS_H"
+  
+  # Имя устройства для System Identification
+  sed -i "s|#define BOARD_NAME .*|#define BOARD_NAME \"$DEVICE_NAME\"|" "$DEFAULTS_H"
 fi
 
 # 5. Изменение SSID в defaults.c
@@ -94,6 +100,9 @@ if [[ -f "$DEFAULTS_C" ]]; then
     -e "s|def_gssid_24g = \".*\";|def_gssid_24g = \"Xiaomi_GUEST\";|" \
     -e "s|def_gssid_5g = \".*\";|def_gssid_5g = \"Xiaomi_GUEST_5G\";|" \
     "$DEFAULTS_C"
+  
+  # Имя устройства
+  sed -i "s|def_computer_name\[32\] = \".*\";|def_computer_name[32] = \"$DEVICE_NAME\";|" "$DEFAULTS_C"
 fi
 
 # 6. Замена в веб-интерфейсе
