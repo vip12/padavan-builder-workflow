@@ -4,8 +4,8 @@ NEW_IP="192.168.31.1"
 NEW_SSID="Xiaomi_B477"
 NEW_HOSTNAME="miwifi.com"
 NEW_COUNTRY="RU"
-NEW_TIMEZONE="MSK-3"
-NTP_SERVERS=("pool.ntp.org" "ntp.msk-ix.ru" "time.cloudflare.com" "time.google.com")
+NEW_TIMEZONE="MSK-3MSD"
+NTP_SERVERS=("ntp.msk-ix.ru" "ru.pool.ntp.org" "ntp1.vniiftri.ru" "ntp1.stratum1.ru")
 
 echo "Applying network settings:"
 echo "- IP: $NEW_IP"
@@ -66,21 +66,33 @@ if [[ -f "$DEFAULTS_H" ]]; then
       sed -i "s|DEF_NTP_SERVER$i[[:space:]]\+\".*\"|DEF_NTP_SERVER$i \"${NTP_SERVERS[$i]}\"|" "$DEFAULTS_H"
     fi
   done
-fi
-
-# 5. Изменение SSID в defaults.h и defaults.c
-if [[ -f "$DEFAULTS_H" ]]; then
+  
+  # Основные SSID
   sed -i \
     -e "s|DEF_WLAN_2G_SSID[[:space:]]\+\".*\"|DEF_WLAN_2G_SSID \"$NEW_SSID\"|" \
     -e "s|DEF_WLAN_5G_SSID[[:space:]]\+\".*\"|DEF_WLAN_5G_SSID \"${NEW_SSID}_5G\"|" \
     "$DEFAULTS_H"
+  
+  # Гостевые SSID
+  sed -i \
+    -e "s|DEF_WLAN_2G_GSSID[[:space:]]\+\".*\"|DEF_WLAN_2G_GSSID \"Xiaomi_GUEST\"|" \
+    -e "s|DEF_WLAN_5G_GSSID[[:space:]]\+\".*\"|DEF_WLAN_5G_GSSID \"Xiaomi_GUEST_5G\"|" \
+    "$DEFAULTS_H"
 fi
 
+# 5. Изменение SSID в defaults.c
 DEFAULTS_C="padavan-ng/trunk/user/shared/defaults.c"
 if [[ -f "$DEFAULTS_C" ]]; then
+  # Основные сети
   sed -i \
     -e "s|def_ssid_24g = \".*\";|def_ssid_24g = \"$NEW_SSID\";|" \
     -e "s|def_ssid_5g = \".*\";|def_ssid_5g = \"${NEW_SSID}_5G\";|" \
+    "$DEFAULTS_C"
+  
+  # Гостевые сети
+  sed -i \
+    -e "s|def_gssid_24g = \".*\";|def_gssid_24g = \"Xiaomi_GUEST\";|" \
+    -e "s|def_gssid_5g = \".*\";|def_gssid_5g = \"Xiaomi_GUEST_5G\";|" \
     "$DEFAULTS_C"
 fi
 
