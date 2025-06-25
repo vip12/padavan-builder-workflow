@@ -103,6 +103,9 @@ if [[ -f "$DEFAULTS_C" ]]; then
   
   # Имя устройства
   sed -i "s|def_computer_name\[32\] = \".*\";|def_computer_name[32] = \"$DEVICE_NAME\";|" "$DEFAULTS_C"
+  
+  # Ключевое исправление: изменение поля computer_name в структуре nvram_pair
+  sed -i "s|{ \"computer_name\", BOARD_NAME },|{ \"computer_name\", \"$DEVICE_NAME\" },|" "$DEFAULTS_C"
 fi
 
 # 6. Замена в веб-интерфейсе
