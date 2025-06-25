@@ -25,17 +25,15 @@ else
   exit 1
 fi
 
-# 3. Прямое изменение SSID в скрипте инициализации Wi-Fi
-WIFI_SCRIPT="padavan-ng/trunk/user/shared/scripts/set_wifi.sh"
-if [[ -f "$WIFI_SCRIPT" ]]; then
-  # Для 2.4GHz - только имя, без суффикса
-  sed -i "s|ssid_24g=\${ssid_24g:-.*}|ssid_24g=\${ssid_24g:-'$NEW_SSID'}|" "$WIFI_SCRIPT"
-  
-  # Для 5GHz - имя + "_5G"
-  sed -i "s|ssid_5g=\${ssid_5g:-.*}|ssid_5g=\${ssid_5g:-'${NEW_SSID}_5G'}|" "$WIFI_SCRIPT"
-else
-  echo "WARNING: Wi-Fi init script not found at $WIFI_SCRIPT"
-fi
+# 3. Прямое изменение SSID в файлах профиля Wi-Fi
+# Поиск всех профилей Wi-Fi в конфигах платы
+find padavan-ng/trunk/configs/boards -name "*.profile" | while read profile; do
+  echo "Modifying Wi-Fi profile: $profile"
+  # Для 2.4GHz
+  sed -i "s|^ssid_24g=.*|ssid_24g='$NEW_SSID'|" "$profile"
+  # Для 5GHz
+  sed -i "s|^ssid_5g=.*|ssid_5g='${NEW_SSID}_5G'|" "$profile"
+done
 
 # 4. Изменение домена по умолчанию
 DEFAULTS_FILE="padavan-ng/trunk/user/shared/defaults.sh"
